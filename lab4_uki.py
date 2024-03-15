@@ -1,4 +1,7 @@
-import telebot 
+from decimal import Decimal
+import json
+import telebot
+
 from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
 
 rpc_user = "kzcashrpc"
@@ -12,26 +15,24 @@ bot = telebot.TeleBot(token)
 
 @bot.message_handler(commands=["start"])
 def start(message):
-    start = """Привет я telegram bot по kzcash 
+    start = """Привет я telegram bot по kzcash
     Команды:
     /getbalance - команда для того, чтобы узнать твой баланс
-    /getnewaddress - команда для того, чтобы создать новый адрес кошельку 
-    /send 'адрес отправителя' 'адрес получателя' 'количество монет' """
+    /getnewaddress - команда для того, чтобы создать новый адрес кошельку
+    /send 'адрес отправителя' 'адрес получателя' 'количество монет' -  команда для отправки монет с определенного адреса кошелька
+    /listunspent - команда об информации кошелька
+    /getaddressmessage 'адрес' - команда для получения баланса адреса """
     bot.send_message(message.chat.id, start)
-
-@bot.message_handler(content_types=["text"])
-def repeat_all_messages(message): 
-    bot.send_message(message.chat.id, message.text)
 
 @bot.message_handler(commands=["getbalance"])
 def get_balance(message):
     balance = rpc_client.getbalance()
-    bot.send_message(message.chat.id, balance)
+    bot.send_message(message.chat.id, f"Ваш текущий баланс: {balance} KZC")
 
 @bot.message_handler(commands=["getnewaddress"])
 def get_newaddress(message):
-    address = rpc_client.getaddress()
-    bot.send_message(message.chat.id, address)
+    address = rpc_client.getnewaddress()
+    bot.send_message(message.chat.id, f"Ваш новый адрес: {address}")
 
 @bot.message_handler(commands=["send"])
 def send_coins(message):
@@ -48,7 +49,7 @@ def send_coins(message):
     except JSONRPCException:
        bot.reply_to(message, f"Неправильный адрес кошелька отправителя")
        return
-    
+
     for i in inputs:
        temp = i
        if float(float(temp.get("amount"))) > (float(amount) + 0.001):
@@ -56,19 +57,36 @@ def send_coins(message):
     if float(float(temp.get("amount"))) < (float(amount) + 0.001):
        bot.reply_to(message, f"Недостаточно средств в кошельке")
        return
-    res = float(temp.get("amount")) - float(amount) - 0.001 
+    res = float(temp.get("amount")) - float(amount) - 0.001
     intTrans = {"txid":temp.get("txid"), "vout": temp.get("vout")}
     try:
        createTrans = rpc_client.createrawtransaction([intTrans], {receiver_address:amount, sender_address:res})
-    
+
     except JSONRPCException:
        bot.reply_to(message, f"Ошибка, простите, повторите попытку снова")
     signTrans = rpc_client.signrawtransaction(createTrans)
     receivedHex = signTrans.get("hex")
     txid = rpc_client.sendrawtransaction(receivedHex)
     bot.reply_to(message, f"Монеты успешно отправлены. ID: {txid}")
-  
 
+@bot.message_handler(commands=['getaddressbalance'])
+def get_address_balance(message):
+    data_json = rpc_client.listunspent()  # Предполагается, что здесь возвращается строка JSON
+    address = message.text.split()[1]
+    amount = None  # Инициализируем amount на случай, если адрес не найден
+    for item in data_json:  # Используем строку JSON напрямую как список словарей
+        if item.get("address") == address:
+            amount = str(Decimal(item["amount"]))  # Преобразуем Decimal в строку
+            break  # Перемещаем break внутрь условия
+    if amount is not None:
+        bot.reply_to(message, f"Баланс адреса {address}: {amount} KZC")
+    else:
+        bot.reply_to(message, f"Адрес {address} не найден или у него нулевой баланс")
+
+@bot.message_handler(commands=['listunspent'])
+def listunspent(message):
+    list = rpc_client.listunspent()
+    bot.send_message(message.chat.id, f"{list}")
 
 if __name__ == '__main__':
      bot.infinity_polling()

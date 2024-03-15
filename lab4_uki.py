@@ -71,13 +71,13 @@ def send_coins(message):
 
 @bot.message_handler(commands=['getaddressbalance'])
 def get_address_balance(message):
-    data_json = rpc_client.listunspent()  # Предполагается, что здесь возвращается строка JSON
+    data_json = rpc_client.listunspent()  
     address = message.text.split()[1]
-    amount = None  # Инициализируем amount на случай, если адрес не найден
-    for item in data_json:  # Используем строку JSON напрямую как список словарей
+    amount = None  
+    for item in data_json:  
         if item.get("address") == address:
-            amount = str(Decimal(item["amount"]))  # Преобразуем Decimal в строку
-            break  # Перемещаем break внутрь условия
+            amount = str(Decimal(item["amount"]))  
+            break  
     if amount is not None:
         bot.reply_to(message, f"Баланс адреса {address}: {amount} KZC")
     else:

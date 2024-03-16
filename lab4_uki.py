@@ -21,7 +21,8 @@ def start(message):
     /getnewaddress - команда для того, чтобы создать новый адрес кошельку
     /send 'адрес отправителя' 'адрес получателя' 'количество монет' -  команда для отправки монет с определенного адреса кошелька
     /listunspent - команда об информации кошелька
-    /getaddressmessage 'адрес' - команда для получения баланса адреса """
+    /getaddressmessage 'адрес' - команда для получения баланса адреса 
+    /getalladdressbalance - команда для того, чтобы вывысти все значение всех адресов"""
     bot.send_message(message.chat.id, start)
 
 @bot.message_handler(commands=["getbalance"])
@@ -76,7 +77,7 @@ def get_address_balance(message):
     amount = None  
     for item in data_json:  
         if item.get("address") == address:
-            amount = str(Decimal(item["amount"]))  
+            amount = str(Decimal(item["amount"])) 
             break  
     if amount is not None:
         bot.reply_to(message, f"Баланс адреса {address}: {amount} KZC")
@@ -87,6 +88,22 @@ def get_address_balance(message):
 def listunspent(message):
     list = rpc_client.listunspent()
     bot.send_message(message.chat.id, f"{list}")
+
+@bot.message_handler(commands=['getalladdressbalance'])
+def get_address_balance(message):
+    data_json = rpc_client.listunspent()  #
+    for item in data_json:
+        address = item['address']
+        amount = item['amount']  
+        for item in data_json:  
+            if item.get("address") == address:
+                amount = str(Decimal(item["amount"]))  
+                break
+        if amount is not None:
+            bot.reply_to(message, f"Баланс адреса {address}: {amount} KZC")
+        else:
+            bot.reply_to(message, f"Адреса {address} не найден или у него нулевой баланс")
+
 
 if __name__ == '__main__':
      bot.infinity_polling()
